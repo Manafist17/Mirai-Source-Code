@@ -1,113 +1,101 @@
-package main
+use std::fmt::{self, Display, Formatter};
 
-import (
-    "fmt"
-    "net"
-    "errors"
-    "time"
-)
+/* Demonstrates printing of a user defined struct using println! macro.*/
 
-const DatabaseAddr string   = "127.0.0.1"
-const DatabaseUser string   = "root"
-const DatabasePass string   = "password"
-const DatabaseTable string  = "mirai"
-
-var clientList *ClientList = NewClientList()
-var database *Database = NewDatabase(DatabaseAddr, DatabaseUser, DatabasePass, DatabaseTable)
-
-func main() {
-    tel, err := net.Listen("tcp", "0.0.0.0:23")
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-
-    api, err := net.Listen("tcp", "0.0.0.0:101")
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-
-    go func() {
-        for {
-            conn, err := api.Accept()
-            if err != nil {
-                break
-            }
-            go apiHandler(conn)
-        }
-    }()
-
-    for {
-        conn, err := tel.Accept()
-        if err != nil {
-            break
-        }
-        go initialHandler(conn)
-    }
-
-    fmt.Println("Stopped accepting clients")
+struct City {
+    name: &'static str,
+    // Latitude
+    lat: f32,
+    // Longitude
+    lon: f32,
 }
 
-func initialHandler(conn net.Conn) {
-    defer conn.Close()
+impl Display for City {
+    // `f` is a buffer, this method must write the formatted string into it
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let lat_c = if self.lat >= 0.0 { 'N' } else { 'S' };
+        let lon_c = if self.lon >= 0.0 { 'E' } else { 'W' };
 
-    conn.SetDeadline(time.Now().Add(10 * time.Second))
-
-    buf := make([]byte, 32)
-    l, err := conn.Read(buf)
-    if err != nil || l <= 0 {
-        return
+        // `write!` is like `format!`, but it will write the formatted string into a buffer (the first argument)
+        write!(
+            f,
+            "{}: {:.3}°{} {:.3}°{}",
+            self.name,
+            self.lat.abs(),
+            lat_c,
+            self.lon.abs(),
+            lon_c
+        )
     }
-
-    if l == 4 && buf[0] == 0x00 && buf[1] == 0x00 && buf[2] == 0x00 {
-        if buf[3] > 0 {
-            string_len := make([]byte, 1)
-            l, err := conn.Read(string_len)
-            if err != nil || l <= 0 {
-                return
-            }
-            var source string
-            if string_len[0] > 0 {
-                source_buf := make([]byte, string_len[0])
-                l, err := conn.Read(source_buf)
-                if err != nil || l <= 0 {
-                    return
-                }
-                source = string(source_buf)
-            }
-            NewBot(conn, buf[3], source).Handle()
-        } else {
-            NewBot(conn, buf[3], "").Handle()
-        }
-    } else {
-        NewAdmin(conn).Handle()
+}
+/**
+This code is a modified version of the format code used for Displaying the city information the
+basic premis is that we are grabing the data from the buffer and putting into the desiered format in our case
+the desired format is
+red: (Red input from buffer),green: (Green input from buffer),blue: (blue input from buffer)
+**/
+impl Display for Color {
+    // `f` is a buffer, this method must write the formatted string into it
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        // `write!` is like `format!`, but it will write the formatted string into a buffer (the first argument)
+        write!(
+            f,
+            "{}: {},{}: {:.3},{}: {:.3}",
+            "red", self.red, "green", self.green, "blue", self.blue
+        )
     }
 }
 
-func apiHandler(conn net.Conn) {
-    defer conn.Close()
-
-    NewApi(conn).Handle()
+#[derive(Debug)]
+struct Color {
+    red: u8,
+    green: u8,
+    blue: u8,
 }
 
-func readXBytes(conn net.Conn, buf []byte) (error) {
-    tl := 0
-
-    for tl < len(buf) {
-        n, err := conn.Read(buf[tl:])
-        if err != nil {
-            return err
-        }
-        if n <= 0 {
-            return errors.New("Connection closed unexpectedly")
-        }
-        tl += n
+fn main() {
+    for city in [
+        City {
+            name: "Glassboro",
+            lat: 39.702892,
+            lon: -75.111839,
+        },
+        City {
+            name: "Mullica Hill",
+            lat: 39.73928,
+            lon: -75.224072,
+        },
+        City {
+            name: "Swedesboro",
+            lat: 39.747616,
+            lon: -75.310463,
+        },
+    ]
+    .iter()
+    {
+        println!("{}", *city);
     }
 
-    return nil
-}
-
-func netshift(prefix uint32, netmask uint8) uint32 {
-    return uint32(prefix >> (32 - netmask))
+    for color in [
+        Color {
+            red: 128,
+            green: 255,
+            blue: 90,
+        },
+        Color {
+            red: 0,
+            green: 3,
+            blue: 254,
+        },
+        Color {
+            red: 0,
+            green: 0,
+            blue: 0,
+        },
+    ]
+    .iter()
+    {
+        // Hint : Fix the code so you can print it using {}
+        println!("{}", *color);
+    }
 }
